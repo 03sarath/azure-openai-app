@@ -1,0 +1,3 @@
+# Frontend — thin Flask UI that proxies requests to the backend container
+flask
+requests

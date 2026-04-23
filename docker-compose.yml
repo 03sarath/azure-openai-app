@@ -1,0 +1,61 @@
+version: "3.9"
+
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │  Azure OpenAI RAG — Docker Compose                                  │
+# │                                                                     │
+# │  Two containers:                                                    │
+# │    frontend  → serves the UI  (port 5000)                          │
+# │    backend   → RAG API / FAISS (port 8000, also on internal net)   │
+# │                                                                     │
+# │  Both share the same rag-net bridge network.                        │
+# │  The frontend never talks to Azure OpenAI directly — only backend. │
+# └─────────────────────────────────────────────────────────────────────┘
+
+services:
+
+  # ── RAG / FAISS backend ─────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: rag-backend
+    env_file: .env                        # OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, etc.
+    environment:
+      DATA_DIR: /app/data/qna             # where .txt docs live inside the container
+      VECTOR_STORE_DIR: /app/vector_store # where FAISS index is persisted
+    volumes:
+      - ./data:/app/data                  # bind-mount so docs survive container restart
+      - ./vector_store:/app/vector_store  # bind-mount so FAISS index survives restart
+    ports:
+      - "8000:8000"   # expose for debugging / direct API testing (optional)
+    networks:
+      - rag-net
+    restart: unless-stopped
+    # Health check — Docker will poll /health every 10s.
+    # The frontend waits until this passes before it starts.
+    # start_period gives the backend time to build/load the FAISS index.
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s   # allow up to 2 min for first-run index build
+
+  # ── UI frontend ─────────────────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: rag-frontend
+    environment:
+      BACKEND_URL: http://backend:8000    # Docker internal hostname — NOT localhost
+    ports:
+      - "5000:5000"   # open your browser at http://localhost:5000
+    depends_on:
+      backend:
+        condition: service_healthy        # waits for backend healthcheck to pass
+    networks:
+      - rag-net
+    restart: unless-stopped
+
+# ── Shared network ──────────────────────────────────────────────────────
+networks:
+  rag-net:
+    driver: bridge

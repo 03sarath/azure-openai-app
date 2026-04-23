@@ -1,1 +1,11 @@
 venv/
+
+# FAISS vector store — generated at runtime, do not commit
+vector_store/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment secrets
+
