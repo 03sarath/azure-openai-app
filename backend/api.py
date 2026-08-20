@@ -64,11 +64,11 @@ if not _endpoint.startswith("https://"):
 logger.info("Connecting to Azure OpenAI...")
 
 llm = AzureChatOpenAI(
-    azure_deployment=os.getenv("AZURE_CHAT_DEPLOYMENT", "gpt-4o"),
+    azure_deployment=os.getenv("AZURE_CHAT_DEPLOYMENT", "gpt-5-mini"),
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     api_key=os.getenv("OPENAI_API_KEY"),
     api_version="2024-02-01",
-    temperature=0,
+    temperature=1,
 )
 
 embeddings = AzureOpenAIEmbeddings(
